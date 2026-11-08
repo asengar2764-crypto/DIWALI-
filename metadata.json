@@ -1,0 +1,6 @@
+{
+  "name": "Shubh Deepavali — Royal Diwali Celebration",
+  "description": "A festive Happy Diwali greeting experience featuring interactive fireworks, glowing clay diyas, marigold garlands, traditional blessings, and celebratory video.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

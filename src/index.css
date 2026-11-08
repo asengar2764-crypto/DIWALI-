@@ -1,0 +1,121 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    --font-display: 'Cinzel', Georgia, serif;
+    --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-hindi: 'Rozha One', serif;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: #140414;
+    color: #FFF8EB;
+  }
+
+  h1, h2, h3, .font-display {
+    font-family: var(--font-display);
+  }
+
+  .font-hindi {
+    font-family: var(--font-hindi);
+  }
+}
+
+@keyframes flameFlicker {
+  0%, 100% {
+    transform: scale(1) rotate(-1deg) translateY(0);
+    opacity: 0.96;
+  }
+  25% {
+    transform: scale(1.04, 0.97) rotate(1.5deg) translateY(-1px);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(0.97, 1.06) rotate(-1.5deg) translateY(-2px);
+    opacity: 0.92;
+  }
+  75% {
+    transform: scale(1.03, 1.02) rotate(1deg) translateY(-0.5px);
+    opacity: 0.99;
+  }
+}
+
+@keyframes haloPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scale(1.18);
+    opacity: 0.85;
+  }
+}
+
+@keyframes lanternSway {
+  0%, 100% {
+    transform: rotate(-2.5deg);
+  }
+  50% {
+    transform: rotate(2.5deg);
+  }
+}
+
+@keyframes slowSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes floatSparkle {
+  0%, 100% {
+    transform: translateY(0px) scale(0.9);
+    opacity: 0.25;
+  }
+  50% {
+    transform: translateY(-18px) scale(1.15);
+    opacity: 0.9;
+  }
+}
+
+.animate-flame {
+  animation: flameFlicker 2.4s ease-in-out infinite;
+  transform-origin: 50% 90%;
+}
+
+.animate-halo {
+  animation: haloPulse 3.2s ease-in-out infinite;
+}
+
+.animate-lantern {
+  animation: lanternSway 5.5s ease-in-out infinite;
+  transform-origin: 50% 0%;
+}
+
+.animate-lantern-delayed {
+  animation: lanternSway 6.4s ease-in-out infinite -2.5s;
+  transform-origin: 50% 0%;
+}
+
+.animate-rangoli-spin {
+  animation: slowSpin 90s linear infinite;
+}
+
+.animate-sparkle {
+  animation: floatSparkle 4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-flame,
+  .animate-halo,
+  .animate-lantern,
+  .animate-lantern-delayed,
+  .animate-rangoli-spin,
+  .animate-sparkle {
+    animation: none !important;
+  }
+}
