@@ -152,6 +152,12 @@ const SPARKLE_PARTICLES = [
 
 export default function App() {
   const [hasCelebrated, setHasCelebrated] = useState(false);
+  // Three welcome screen diyas start with their flames turned OFF
+  const [welcomeDiyas, setWelcomeDiyas] = useState<[boolean, boolean, boolean]>([
+    false,
+    false,
+    false,
+  ]);
   const [diyas, setDiyas] = useState<DiyaBlessing[]>(INITIAL_DIYAS);
   const [activeBlessing, setActiveBlessing] = useState<DiyaBlessing>(INITIAL_DIYAS[0]);
 
@@ -171,6 +177,91 @@ export default function App() {
   const confettiRef = useRef<GoldenConfettiHandle | null>(null);
   const audioRef = useRef<YouTubeAudioHandle | null>(null);
   const personalizeInputRef = useRef<HTMLInputElement | null>(null);
+  const diyaAudioCtxRef = useRef<AudioContext | null>(null);
+
+  // Soft diya-lighting sound effect (warm wick ignition + gentle golden chime)
+  const playDiyaIgnitionSound = (diyaIndex: number) => {
+    try {
+      if (!diyaAudioCtxRef.current) {
+        const AudioCtx =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        diyaAudioCtxRef.current = new AudioCtx();
+      }
+      const ctx = diyaAudioCtxRef.current;
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+
+      const now = ctx.currentTime;
+
+      // 1. Soft cotton-wick flame ignition whoosh
+      const bufferSize = Math.floor(ctx.sampleRate * 0.16);
+      const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        const env = Math.sin((i / bufferSize) * Math.PI);
+        data[i] = (Math.random() * 2 - 1) * env * 0.35;
+      }
+
+      const noise = ctx.createBufferSource();
+      noise.buffer = noiseBuffer;
+
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(620, now);
+      filter.frequency.exponentialRampToValueAtTime(1400, now + 0.15);
+      filter.Q.setValueAtTime(1.8, now);
+
+      const noiseGain = ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.08, now);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+
+      noise.connect(filter);
+      filter.connect(noiseGain);
+      noiseGain.connect(ctx.destination);
+      noise.start(now);
+
+      // 2. Warm auspicious harmonic bell tone (ascending per diya)
+      const frequencies = [528, 660, 792];
+      const freq = frequencies[diyaIndex % frequencies.length];
+      const osc = ctx.createOscillator();
+      const toneGain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now);
+      osc.frequency.exponentialRampToValueAtTime(freq * 1.005, now + 0.55);
+
+      toneGain.gain.setValueAtTime(0.001, now);
+      toneGain.gain.linearRampToValueAtTime(0.075, now + 0.025);
+      toneGain.gain.exponentialRampToValueAtTime(0.0008, now + 0.65);
+
+      osc.connect(toneGain);
+      toneGain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.66);
+    } catch {
+      // Ignore audio errors if blocked by browser policy
+    }
+  };
+
+  const handleLightWelcomeDiya = (index: number) => {
+    setWelcomeDiyas((prev) => {
+      const next: [boolean, boolean, boolean] = [...prev] as [boolean, boolean, boolean];
+      next[index] = true;
+      const newlyAllLit = next.every(Boolean) && !prev.every(Boolean);
+      if (newlyAllLit) {
+        setTimeout(() => {
+          fireworksRef.current?.launchSalvo(6);
+          confettiRef.current?.triggerConfetti(90);
+        }, 120);
+      } else {
+        fireworksRef.current?.launchSalvo(2);
+      }
+      return next;
+    });
+    playDiyaIgnitionSound(index);
+  };
 
   // 1. Automatically read and sanitize the recipient's name from URL on initial load
   useEffect(() => {
@@ -243,6 +334,7 @@ export default function App() {
   }, [cleanDraftRecipient, cleanActiveRecipient, cleanDraftSender, senderName, shareableUrl]);
 
   const handleStartCelebration = () => {
+    setWelcomeDiyas([true, true, true]);
     setHasCelebrated(true);
     audioRef.current?.playCelebrationAudio();
     setTimeout(() => {
@@ -358,6 +450,8 @@ export default function App() {
   };
 
   const litDiyasCount = diyas.filter((d) => d.isLit).length;
+  const allWelcomeDiyasLit = welcomeDiyas.every(Boolean);
+  const litWelcomeCount = welcomeDiyas.filter(Boolean).length;
 
   // Dynamic personalized message vs general message
   const heroBlessingMessage = cleanActiveRecipient
@@ -408,7 +502,7 @@ export default function App() {
       <MarigoldToranHeader />
 
       {/* =====================================================================
-          1. ANIMATED WELCOME EXPERIENCE OVERLAY
+          1. DIWALI WELCOME SCREEN & INTERACTIVE DIYA LIGHTING EXPERIENCE
          ===================================================================== */}
       <AnimatePresence>
         {!hasCelebrated && (
@@ -418,58 +512,148 @@ export default function App() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0, scale: 1.04, filter: 'blur(10px)' }}
             transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
-            className="fixed inset-0 z-50 flex flex-col items-center justify-center px-4 py-10 bg-gradient-to-b from-[#17041A]/95 via-[#2D081F]/95 to-[#120210]/98 backdrop-blur-md overflow-y-auto"
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center px-4 pt-20 pb-8 bg-gradient-to-b from-[#17041A]/95 via-[#2D081F]/95 to-[#120210]/98 backdrop-blur-md overflow-y-auto"
           >
+            {/* Subtle Light-Spreading Radial Illumination Across the Welcome Screen */}
+            <motion.div
+              aria-hidden="true"
+              animate={{
+                opacity: allWelcomeDiyasLit
+                  ? 0.95
+                  : litWelcomeCount === 2
+                  ? 0.55
+                  : litWelcomeCount === 1
+                  ? 0.3
+                  : 0.08,
+                scale: allWelcomeDiyasLit ? 1.35 : 0.8 + litWelcomeCount * 0.15,
+              }}
+              transition={{ duration: 0.9, ease: 'easeOut' }}
+              className="pointer-events-none fixed inset-0 flex items-center justify-center"
+              style={{
+                background:
+                  'radial-gradient(circle at 50% 52%, rgba(251, 191, 36, 0.28) 0%, rgba(249, 115, 22, 0.14) 36%, rgba(23, 4, 26, 0) 72%)',
+              }}
+            />
+
             {/* Rotating Sacred Rangoli Mandala Behind Welcome Card */}
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden">
-              <RangoliMandala className="w-[500px] h-[500px] sm:w-[680px] sm:h-[680px] animate-rangoli-spin opacity-65" />
+              <RangoliMandala className="w-[480px] h-[480px] sm:w-[660px] sm:h-[660px] animate-rangoli-spin opacity-65" />
             </div>
 
             <motion.div
               initial={{ y: 24, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.12, duration: 0.6 }}
-              className="relative z-10 w-full max-w-2xl mx-auto text-center rounded-[32px] p-6 sm:p-10 md:p-12 bg-[#230619]/85 border border-amber-400/35 shadow-[0_28px_80px_rgba(0,0,0,0.85)] backdrop-blur-xl"
+              className={`relative z-10 w-full max-w-2xl mx-auto text-center rounded-[32px] p-6 sm:p-10 md:p-11 bg-[#220518]/90 border transition-all duration-700 backdrop-blur-xl ${
+                allWelcomeDiyasLit
+                  ? 'border-amber-300/75 shadow-[0_0_90px_rgba(251,191,36,0.38),0_28px_80px_rgba(0,0,0,0.85)]'
+                  : 'border-amber-400/35 shadow-[0_28px_80px_rgba(0,0,0,0.85)]'
+              }`}
             >
-              <div className="flex items-center justify-center gap-2 text-xs sm:text-sm font-medium tracking-widest uppercase text-amber-300/90 mb-3">
-                <span>Festival of Lights</span>
-                <span aria-hidden="true">·</span>
-                <span>Deepavali Mahotsav</span>
+              {/* Heading: FESTIVAL OF LIGHTS • DEEPAVALI MAHOTSAV */}
+              <div className="text-xs sm:text-sm font-semibold tracking-[0.2em] uppercase text-amber-300/90 mb-2.5">
+                FESTIVAL OF LIGHTS • DEEPAVALI MAHOTSAV
               </div>
 
+              {/* Hindi Auspicious Header */}
               <p className="font-hindi text-2xl sm:text-3xl text-amber-300 drop-shadow-[0_2px_12px_rgba(251,191,36,0.5)] mb-2">
                 ॥ शुभ दीपावली ॥
               </p>
 
+              {/* Main Golden HAPPY DIWALI / Personalized Heading */}
               <h1
-                className="font-display font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-300 to-orange-400 drop-shadow-[0_4px_24px_rgba(251,191,36,0.45)] mb-4"
-                style={{ fontSize: 'clamp(2.1rem, 5vw, 3.85rem)', textWrap: 'balance' }}
+                className="font-display font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-300 to-orange-400 drop-shadow-[0_4px_26px_rgba(251,191,36,0.48)] mb-3"
+                style={{ fontSize: 'clamp(2rem, 5vw, 3.65rem)', textWrap: 'balance' }}
               >
                 {cleanActiveRecipient
-                  ? `Happy Diwali, ${cleanActiveRecipient}! 🪔`
-                  : 'Happy Diwali 🪔'}
+                  ? `HAPPY DIWALI, ${cleanActiveRecipient.toUpperCase()}!`
+                  : 'HAPPY DIWALI'}
               </h1>
 
-              <p className="text-sm sm:text-base text-amber-100/90 max-w-lg mx-auto leading-relaxed mb-8">
+              {/* Festive Description */}
+              <p className="text-sm sm:text-base text-amber-100/90 max-w-lg mx-auto leading-relaxed mb-6">
                 {cleanActiveRecipient
-                  ? `Dear ${cleanActiveRecipient}, may this Diwali fill your life with happiness, prosperity and endless success!`
-                  : 'Step into a luminous celebration of glowing clay diyas, sky-filling fireworks, marigold garlands, festive melody, and heartfelt blessings for you and your family.'}
+                  ? `Dear ${cleanActiveRecipient}, may this Diwali fill your life with happiness, prosperity and endless success! Tap the sacred clay diyas below to light them.`
+                  : 'Step into a luminous celebration of glowing clay diyas, sky-filling fireworks, marigold garlands, and heartfelt blessings for you and your family.'}
               </p>
 
-              <div className="flex items-center justify-center gap-4 sm:gap-8 mb-8">
-                <GlowingDiya size="sm" isLit={true} />
-                <GlowingDiya size="md" isLit={true} />
-                <GlowingDiya size="sm" isLit={true} />
+              {/* Interactive Three Traditional Diyas in the Centre (Initially OFF) */}
+              <div className="relative py-3 mb-5">
+                {/* Golden Glowing Aura Around All Three Lit Diyas */}
+                <AnimatePresence>
+                  {allWelcomeDiyasLit && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.7 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.65, ease: 'easeOut' }}
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-x-8 -inset-y-2 rounded-full bg-gradient-to-r from-amber-500/20 via-yellow-300/35 to-amber-500/20 blur-2xl"
+                    />
+                  )}
+                </AnimatePresence>
+
+                <div className="relative z-10 flex items-end justify-center gap-5 sm:gap-10">
+                  <GlowingDiya
+                    size="sm"
+                    flameIndex={0}
+                    isLit={welcomeDiyas[0]}
+                    onClick={() => handleLightWelcomeDiya(0)}
+                    label={welcomeDiyas[0] ? 'Lit' : 'Tap to Light'}
+                  />
+                  <GlowingDiya
+                    size="md"
+                    flameIndex={1}
+                    isLit={welcomeDiyas[1]}
+                    onClick={() => handleLightWelcomeDiya(1)}
+                    label={welcomeDiyas[1] ? 'Lit' : 'Tap to Light'}
+                  />
+                  <GlowingDiya
+                    size="sm"
+                    flameIndex={2}
+                    isLit={welcomeDiyas[2]}
+                    onClick={() => handleLightWelcomeDiya(2)}
+                    label={welcomeDiyas[2] ? 'Lit' : 'Tap to Light'}
+                  />
+                </div>
+
+                {/* Status / All-Three-Diyas-Lit Celebration Message */}
+                <div className="mt-3 min-h-[28px] flex items-center justify-center">
+                  <AnimatePresence mode="wait">
+                    {allWelcomeDiyasLit ? (
+                      <motion.p
+                        key="all-lit-msg"
+                        initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -6 }}
+                        transition={{ duration: 0.4 }}
+                        className="text-sm sm:text-base font-bold text-amber-200 drop-shadow-[0_0_14px_rgba(251,191,36,0.65)]"
+                      >
+                        You have lit the lamps of happiness! 🪔
+                      </motion.p>
+                    ) : (
+                      <motion.p
+                        key="prompt-msg"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="text-xs sm:text-sm text-amber-200/75"
+                      >
+                        Tap each clay diya above to personally light the lamps ({litWelcomeCount}/3 lit)
+                      </motion.p>
+                    )}
+                  </AnimatePresence>
+                </div>
               </div>
 
-              <div className="flex flex-col items-center gap-3">
+              {/* Prominent Golden Button Labelled "✨ Celebrate Diwali" */}
+              <div className="flex flex-col items-center gap-2.5">
                 <button
                   type="button"
                   onClick={handleStartCelebration}
-                  className="group relative inline-flex items-center justify-center gap-3 px-8 py-4 rounded-2xl text-base sm:text-lg font-bold text-[#1B0515] bg-gradient-to-r from-amber-300 via-yellow-400 to-orange-400 shadow-[0_0_35px_rgba(251,191,36,0.65)] hover:shadow-[0_0_50px_rgba(251,191,36,0.9)] transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer whitespace-nowrap"
+                  className="group relative inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-2xl text-base sm:text-lg font-bold text-[#1B0515] bg-gradient-to-r from-amber-300 via-yellow-400 to-orange-400 shadow-[0_0_35px_rgba(251,191,36,0.65)] hover:shadow-[0_0_50px_rgba(251,191,36,0.9)] transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer whitespace-nowrap"
                 >
-                  <Sparkles className="w-5 h-5 text-[#1B0515] transition-transform group-hover:rotate-12" />
-                  <span>Celebrate Diwali</span>
+                  <span>✨ Celebrate Diwali</span>
                 </button>
                 <span className="text-xs text-amber-200/60">
                   Launches fireworks, festive background melody &amp; interactive diya blessings

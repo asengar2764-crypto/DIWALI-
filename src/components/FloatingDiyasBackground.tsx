@@ -24,26 +24,68 @@ interface CursorSpark {
   id: number;
   x: number;
   y: number;
+  dx: number;
+  dy: number;
+  color: string;
 }
+
+const SPARK_COLORS = ['#FEF08A', '#FACC15', '#FB923C', '#FFD700'];
 
 export function FloatingDiyasBackground() {
   const [cursorSparks, setCursorSparks] = useState<CursorSpark[]>([]);
+  const [pointerPos, setPointerPos] = useState<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     let lastSpawn = 0;
-    const handleMouseMove = (e: MouseEvent) => {
+
+    const spawnAt = (clientX: number, clientY: number, burstCount = 2) => {
+      setPointerPos({ x: clientX, y: clientY });
       const now = performance.now();
-      if (now - lastSpawn < 55) return;
+      if (now - lastSpawn < 40 && burstCount <= 2) return;
       lastSpawn = now;
-      const sparkId = now + Math.random();
-      setCursorSparks((prev) => [
-        ...prev.slice(-14),
-        { id: sparkId, x: e.clientX, y: e.clientY },
-      ]);
+
+      const newSparks: CursorSpark[] = Array.from({ length: burstCount }, (_, idx) => {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 10 + Math.random() * 24;
+        return {
+          id: now + Math.random() + idx,
+          x: clientX,
+          y: clientY,
+          dx: Math.cos(angle) * speed,
+          dy: Math.sin(angle) * speed - 6,
+          color: SPARK_COLORS[Math.floor(Math.random() * SPARK_COLORS.length)],
+        };
+      });
+
+      setCursorSparks((prev) => [...prev.slice(-22), ...newSparks]);
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      spawnAt(e.clientX, e.clientY, 2);
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      const touch = e.touches[0];
+      if (touch) {
+        spawnAt(touch.clientX, touch.clientY, 3);
+      }
+    };
+
+    const handleTouchStart = (e: TouchEvent) => {
+      const touch = e.touches[0];
+      if (touch) {
+        spawnAt(touch.clientX, touch.clientY, 6);
+      }
     };
 
     window.addEventListener('mousemove', handleMouseMove, { passive: true });
-    return () => window.removeEventListener('mousemove', handleMouseMove);
+    window.addEventListener('touchmove', handleTouchMove, { passive: true });
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchstart', handleTouchStart);
+    };
   }, []);
 
   return (
@@ -72,13 +114,13 @@ export function FloatingDiyasBackground() {
             opacity: 0;
           }
         }
-        @keyframes cursorSparkFade {
+        @keyframes cursorSparkBurst {
           0% {
-            transform: translate(-50%, -50%) scale(1);
-            opacity: 0.9;
+            transform: translate(-50%, -50%) scale(1.1);
+            opacity: 0.95;
           }
           100% {
-            transform: translate(-50%, -10px) scale(0.2);
+            transform: translate(calc(-50% + var(--spark-dx, 0px)), calc(-50% + var(--spark-dy, -12px))) scale(0.15);
             opacity: 0;
           }
         }
@@ -113,7 +155,6 @@ export function FloatingDiyasBackground() {
           }
         >
           <div className="relative flex items-center justify-center">
-            {/* Soft warm golden aura */}
             <div className="absolute -top-2 w-10 h-10 rounded-full bg-amber-400/35 blur-md" />
             <svg
               width="38"
@@ -121,7 +162,6 @@ export function FloatingDiyasBackground() {
               viewBox="0 0 60 56"
               className="drop-shadow-[0_0_10px_rgba(251,191,36,0.65)]"
             >
-              {/* Flame outer & core */}
               <path
                 d="M30 4 C24 13 23 21 30 28 C37 21 36 13 30 4 Z"
                 fill="#F97316"
@@ -134,7 +174,6 @@ export function FloatingDiyasBackground() {
                 d="M30 13 C28 17 28 21 30 25 C32 21 32 17 30 13 Z"
                 fill="#FFFBEB"
               />
-              {/* Glowing diya bowl */}
               <ellipse cx="30" cy="30" rx="18" ry="4.5" fill="#F59E0B" />
               <path
                 d="M10 30 C10 46 21 51 30 51 C39 51 50 46 50 30 Q30 36 10 30 Z"
@@ -148,16 +187,31 @@ export function FloatingDiyasBackground() {
         </div>
       ))}
 
-      {/* Subtle Festive Golden Cursor Sparkle Trail */}
+      {/* Cursor-Following Golden Light Aura */}
+      {pointerPos && (
+        <div
+          style={{
+            transform: `translate3d(${pointerPos.x - 64}px, ${pointerPos.y - 64}px, 0)`,
+          }}
+          className="fixed top-0 left-0 w-32 h-32 rounded-full bg-amber-400/15 blur-2xl pointer-events-none transition-transform duration-75"
+        />
+      )}
+
+      {/* Cursor & Touch Firecracker Particle Sparks */}
       {cursorSparks.map((spark) => (
         <div
           key={spark.id}
-          style={{
-            left: spark.x,
-            top: spark.y,
-            animation: 'cursorSparkFade 650ms ease-out forwards',
-          }}
-          className="fixed w-2.5 h-2.5 rounded-full bg-amber-300 shadow-[0_0_10px_#FACC15] pointer-events-none"
+          style={
+            {
+              left: spark.x,
+              top: spark.y,
+              backgroundColor: spark.color,
+              '--spark-dx': `${spark.dx}px`,
+              '--spark-dy': `${spark.dy}px`,
+              animation: 'cursorSparkBurst 620ms ease-out forwards',
+            } as React.CSSProperties
+          }
+          className="fixed w-2 h-2 rounded-full shadow-[0_0_10px_#FACC15] pointer-events-none"
         />
       ))}
     </div>

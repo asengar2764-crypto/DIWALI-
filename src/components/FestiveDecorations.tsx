@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useId } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 
 export function MarigoldToranHeader() {
   const scallops = [0, 1, 2, 3, 4, 5];
@@ -140,18 +141,14 @@ function HangingLantern({ color = 'crimson' }: { color?: 'crimson' | 'gold' }) {
         style={{ background: glowColor }}
       />
       <svg width="72" height="175" viewBox="0 0 72 175" className="overflow-visible">
-        {/* Hanging chain */}
         <line x1="36" y1="0" x2="36" y2="38" stroke="#FBBF24" strokeWidth="2" strokeDasharray="4 2" />
-        {/* Top brass cap */}
         <path d="M22 44 Q36 30 50 44 Z" fill="#F59E0B" stroke="#FEF08A" strokeWidth="1" />
-        {/* Lantern hexagonal body */}
         <polygon
           points="22,44 50,44 62,74 50,108 22,108 10,74"
           fill={mainFill}
           stroke="#FBBF24"
           strokeWidth="2"
         />
-        {/* Inner glowing lattice window */}
         <polygon
           points="27,50 45,50 53,74 45,100 27,100 19,74"
           fill="#FEF08A"
@@ -159,9 +156,7 @@ function HangingLantern({ color = 'crimson' }: { color?: 'crimson' | 'gold' }) {
         />
         <line x1="36" y1="44" x2="36" y2="108" stroke="#B45309" strokeWidth="1.5" />
         <line x1="15" y1="74" x2="57" y2="74" stroke="#B45309" strokeWidth="1.5" />
-        {/* Bottom brass base */}
         <path d="M22 108 L50 108 L44 118 L28 118 Z" fill="#D97706" stroke="#FEF08A" strokeWidth="1" />
-        {/* Flowing silk tassels */}
         <line x1="28" y1="118" x2="24" y2="156" stroke="#F59E0B" strokeWidth="1.8" />
         <line x1="36" y1="118" x2="36" y2="166" stroke="#FACC15" strokeWidth="2.2" />
         <line x1="44" y1="118" x2="48" y2="156" stroke="#F59E0B" strokeWidth="1.8" />
@@ -178,20 +173,38 @@ interface GlowingDiyaProps {
   isLit?: boolean;
   onClick?: () => void;
   label?: string;
+  flameIndex?: number;
+  showSparklesWhenLit?: boolean;
 }
+
+const DIYA_SPARK_OFFSETS = [
+  { cx: 36, cy: 18, r: 1.8, delay: '0s', dur: '1.8s' },
+  { cx: 84, cy: 20, r: 1.6, delay: '0.4s', dur: '2.1s' },
+  { cx: 45, cy: 8, r: 1.4, delay: '0.8s', dur: '1.6s' },
+  { cx: 75, cy: 10, r: 1.7, delay: '0.25s', dur: '2.3s' },
+  { cx: 28, cy: 34, r: 1.5, delay: '0.6s', dur: '1.9s' },
+  { cx: 92, cy: 32, r: 1.5, delay: '1.1s', dur: '2.0s' },
+];
 
 export function GlowingDiya({
   size = 'md',
   isLit = true,
   onClick,
   label,
+  flameIndex = 0,
+  showSparklesWhenLit = true,
 }: GlowingDiyaProps) {
+  const uid = useId();
   const dimensions =
     size === 'lg'
-      ? 'w-28 h-28 sm:w-32 sm:h-32'
+      ? 'w-24 h-24 sm:w-32 sm:h-32'
       : size === 'md'
       ? 'w-20 h-20 sm:w-24 sm:h-24'
       : 'w-14 h-14';
+
+  // Separate flame animation duration & delay for each diya so they never move in mechanical lockstep
+  const flameDuration = `${2.1 + (flameIndex % 4) * 0.32}s`;
+  const flameDelay = `-${(flameIndex % 5) * 0.45}s`;
 
   const Wrapper = onClick ? 'button' : 'div';
 
@@ -199,33 +212,53 @@ export function GlowingDiya({
     <Wrapper
       type={onClick ? 'button' : undefined}
       onClick={onClick}
-      aria-label={label ? `Diya of ${label} (${isLit ? 'Lit' : 'Click to light'})` : undefined}
+      aria-pressed={onClick ? isLit : undefined}
+      aria-label={
+        label
+          ? `${label} (${isLit ? 'Lit' : 'Tap to light diya'})`
+          : onClick
+          ? isLit
+            ? 'Lit Diya lamp'
+            : 'Unlit Diya lamp — tap to light'
+          : undefined
+      }
       className={`group relative flex flex-col items-center justify-center select-none ${
-        onClick ? 'cursor-pointer focus-visible:outline-2 focus-visible:outline-amber-400 rounded-xl p-1 transition-transform duration-150 hover:scale-105 active:scale-95' : ''
+        onClick
+          ? 'min-w-[80px] min-h-[80px] cursor-pointer focus-visible:outline-2 focus-visible:outline-amber-400 rounded-2xl p-1.5 transition-transform duration-200 hover:scale-105 active:scale-95 touch-manipulation'
+          : ''
       }`}
     >
-      {/* Warm Radiant Halo */}
-      {isLit && (
-        <div
-          className="absolute -top-3 w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-amber-400/40 blur-xl animate-halo pointer-events-none"
-          aria-hidden="true"
-        />
-      )}
+      {/* Warm Radiant Halo Behind Lit Diya */}
+      <AnimatePresence>
+        {isLit && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.4 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.4 }}
+            transition={{ duration: 0.45, ease: 'easeOut' }}
+            className="absolute -top-3 w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-amber-400/45 blur-xl animate-halo pointer-events-none"
+            aria-hidden="true"
+          />
+        )}
+      </AnimatePresence>
 
-      <svg viewBox="0 0 120 110" className={`${dimensions} overflow-visible drop-shadow-[0_6px_12px_rgba(0,0,0,0.6)]`}>
+      <svg
+        viewBox="0 0 120 110"
+        className={`${dimensions} overflow-visible drop-shadow-[0_8px_16px_rgba(0,0,0,0.7)]`}
+      >
         <defs>
-          <radialGradient id="flameOuter" cx="50%" cy="65%" r="55%">
+          <radialGradient id={`flameOuter-${uid}`} cx="50%" cy="65%" r="55%">
             <stop offset="0%" stopColor="#FFFBEB" />
             <stop offset="45%" stopColor="#FACC15" />
             <stop offset="80%" stopColor="#F97316" />
             <stop offset="100%" stopColor="#EA580C" stopOpacity="0" />
           </radialGradient>
-          <linearGradient id="clayBowl" x1="0%" y1="0%" x2="100%" y2="100%">
+          <linearGradient id={`clayBowl-${uid}`} x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#D97706" />
             <stop offset="45%" stopColor="#9A3412" />
             <stop offset="100%" stopColor="#431407" />
           </linearGradient>
-          <linearGradient id="goldRim" x1="0%" y1="0%" x2="100%" y2="0%">
+          <linearGradient id={`goldRim-${uid}`} x1="0%" y1="0%" x2="100%" y2="0%">
             <stop offset="0%" stopColor="#B45309" />
             <stop offset="50%" stopColor="#FEF08A" />
             <stop offset="100%" stopColor="#B45309" />
@@ -233,33 +266,97 @@ export function GlowingDiya({
         </defs>
 
         {/* Cotton wick */}
-        <path d="M60 54 Q60 44 60 39" stroke="#78350F" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+        <path
+          d="M60 54 Q60 44 60 38"
+          stroke={isLit ? '#F59E0B' : '#78350F'}
+          strokeWidth="2.8"
+          strokeLinecap="round"
+          fill="none"
+        />
 
-        {/* Multi-layered flickering flame */}
-        {isLit ? (
-          <g className="animate-flame">
-            {/* Outer warm aura */}
-            <ellipse cx="60" cy="26" rx="18" ry="24" fill="url(#flameOuter)" opacity="0.65" />
-            {/* Main golden-orange teardrop flame */}
-            <path
-              d="M60 4 C49 19 46 32 60 44 C74 32 71 19 60 4 Z"
-              fill="#F97316"
-            />
-            <path
-              d="M60 9 C52 21 50 31 60 42 C70 31 68 21 60 9 Z"
-              fill="#FACC15"
-            />
-            {/* White-hot inner core */}
-            <path
-              d="M60 18 C56 26 55 33 60 40 C65 33 64 26 60 18 Z"
-              fill="#FFFBEB"
-            />
-          </g>
-        ) : (
-          <g className="opacity-60 group-hover:opacity-100 transition-opacity">
-            <circle cx="60" cy="37" r="3" fill="#F59E0B" />
-          </g>
-        )}
+        {/* Animated Wick Ignition & Multi-layered Flickering Flame */}
+        <AnimatePresence>
+          {isLit ? (
+            <motion.g
+              key="lit-flame"
+              initial={{ opacity: 0, scale: 0.15, y: 18 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.2, y: 12 }}
+              transition={{ duration: 0.42, ease: [0.16, 1, 0.3, 1] }}
+              style={{ transformOrigin: '60px 44px' }}
+            >
+              <g
+                className="animate-flame"
+                style={{
+                  animationDuration: flameDuration,
+                  animationDelay: flameDelay,
+                }}
+              >
+                {/* Outer warm aura */}
+                <ellipse
+                  cx="60"
+                  cy="24"
+                  rx="20"
+                  ry="26"
+                  fill={`url(#flameOuter-${uid})`}
+                  opacity="0.75"
+                />
+                {/* Main golden-orange teardrop flame */}
+                <path
+                  d="M60 3 C48 19 45 32 60 44 C75 32 72 19 60 3 Z"
+                  fill="#F97316"
+                />
+                <path
+                  d="M60 8 C51 21 49 31 60 42 C71 31 69 21 60 8 Z"
+                  fill="#FACC15"
+                />
+                {/* White-hot inner core */}
+                <path
+                  d="M60 17 C55 26 55 33 60 40 C65 33 65 26 60 17 Z"
+                  fill="#FFFBEB"
+                />
+              </g>
+
+              {/* Tiny Sparkling Particles Around the Lit Diya */}
+              {showSparklesWhenLit &&
+                DIYA_SPARK_OFFSETS.map((sp, idx) => (
+                  <circle
+                    key={idx}
+                    cx={sp.cx}
+                    cy={sp.cy}
+                    r={sp.r}
+                    fill="#FEF08A"
+                    className="animate-sparkle"
+                    style={{
+                      animationDelay: sp.delay,
+                      animationDuration: sp.dur,
+                    }}
+                  />
+                ))}
+            </motion.g>
+          ) : (
+            <g key="unlit-wick" className="opacity-70 group-hover:opacity-100 transition-opacity">
+              {/* Subtle ember tip on unlit wick inviting a tap */}
+              <circle
+                cx="60"
+                cy="37"
+                r="3.2"
+                fill="#F59E0B"
+                className="group-hover:fill-yellow-300 transition-colors"
+              />
+              <circle
+                cx="60"
+                cy="37"
+                r="7"
+                fill="none"
+                stroke="#FBBF24"
+                strokeWidth="1"
+                strokeDasharray="2 2"
+                opacity="0.55"
+              />
+            </g>
+          )}
+        </AnimatePresence>
 
         {/* Glowing oil surface inside bowl */}
         <ellipse
@@ -267,16 +364,16 @@ export function GlowingDiya({
           cy="56"
           rx="36"
           ry="9"
-          fill={isLit ? '#F59E0B' : '#451A03'}
-          stroke="url(#goldRim)"
+          fill={isLit ? '#F59E0B' : '#2E1005'}
+          stroke={`url(#goldRim-${uid})`}
           strokeWidth="2.5"
         />
 
         {/* Terracotta & Brass ornate Diya Bowl */}
         <path
           d="M18 56 C18 88 42 98 60 98 C78 98 102 88 102 56 Q60 68 18 56 Z"
-          fill="url(#clayBowl)"
-          stroke="url(#goldRim)"
+          fill={`url(#clayBowl-${uid})`}
+          stroke={`url(#goldRim-${uid})`}
           strokeWidth="2"
         />
 
@@ -293,13 +390,13 @@ export function GlowingDiya({
         <circle cx="76" cy="77" r="2.5" fill="#FDE047" />
 
         {/* Base pedestal */}
-        <ellipse cx="60" cy="98" rx="22" ry="4.5" fill="url(#goldRim)" />
+        <ellipse cx="60" cy="98" rx="22" ry="4.5" fill={`url(#goldRim-${uid})`} />
       </svg>
 
       {label && (
         <span
-          className={`mt-1 text-xs font-medium tracking-wide whitespace-nowrap transition-colors ${
-            isLit ? 'text-amber-200' : 'text-amber-100/50 group-hover:text-amber-200'
+          className={`mt-1.5 text-xs font-semibold tracking-wide whitespace-nowrap transition-colors ${
+            isLit ? 'text-amber-200' : 'text-amber-200/60 group-hover:text-amber-200'
           }`}
         >
           {label}
